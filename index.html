@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Lupa de Trabajos</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: documento a la izquierda (como hoja de papel), resultados a la derecha; texto marcado con resaltador debajo */
+:root {
+  --bg: #eef0f4;
+  --paper: #ffffff;
+  --fg: #1b2233;
+  --muted: #5d6578;
+  --line: #d9dde6;
+  --ink: #2a3f8f;
+  --ink-fg: #ffffff;
+  --ink-soft: #e4e9f8;
+  --hl: #fff1a6;
+  --hl-strong: #ffc98a;
+  --low: #2f8a57;
+  --mid: #c98a12;
+  --high: #c2453a;
+  --font-ui: "Libre Franklin", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-doc: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11141b; --paper: #1a1f2a; --fg: #e6e9f0; --muted: #98a0b3; --line: #2d3442;
+    --ink: #8ea6ff; --ink-fg: #0f1320; --ink-soft: #232c45;
+    --hl: #5a4d12; --hl-strong: #6b3d14;
+    --low: #5fcf8e; --mid: #e6b54a; --high: #f07c70;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11141b; --paper: #1a1f2a; --fg: #e6e9f0; --muted: #98a0b3; --line: #2d3442;
+  --ink: #8ea6ff; --ink-fg: #0f1320; --ink-soft: #232c45;
+  --hl: #5a4d12; --hl-strong: #6b3d14;
+  --low: #5fcf8e; --mid: #e6b54a; --high: #f07c70;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 15px; line-height: 1.55; }
+.wrap {
+  max-width: 1180px; margin: 0 auto; padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 22px;
+}
+h1, h2, h3 { margin: 0; line-height: 1.15; text-wrap: balance; }
+p { margin: 0; }
+header { display: flex; flex-direction: column; gap: 6px; }
+header h1 { font-size: clamp(26px, 4vw, 34px); font-weight: 800; letter-spacing: -.02em; }
+header h1 .mark { background: linear-gradient(transparent 55%, var(--hl) 55%); padding: 0 4px; }
+header p { color: var(--muted); max-width: 44em; }
+
+.warn {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--ink-soft); border-radius: 10px; padding: 12px 16px; font-size: 14px;
+}
+.warn b { color: var(--ink); }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 22px; align-items: start; }
+.panel { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.panel h2 { font-size: 17px; font-weight: 700; }
+.label { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+textarea {
+  width: 100%; min-height: 320px; resize: vertical; padding: 18px 20px;
+  font: 17px/1.7 var(--font-doc); color: var(--fg); background: var(--paper);
+  border: 1px solid var(--line); border-radius: 8px;
+}
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn {
+  font: 600 14px var(--font-ui); padding: 10px 16px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--paper); color: var(--fg);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn:hover { border-color: var(--ink); }
+.btn-primary { background: var(--ink); color: var(--ink-fg); border-color: var(--ink); }
+.btn:disabled { opacity: .55; cursor: default; }
+.btn:focus-visible, textarea:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+input[type="file"] { display: none; }
+.hint { font-size: 13px; color: var(--muted); }
+.count { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.file-msg { font-size: 13px; }
+
+/* Medidor */
+.meter { display: flex; flex-direction: column; gap: 8px; }
+.meter-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.verdict { font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
+.score { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.bar { position: relative; height: 10px; border-radius: 5px; background: linear-gradient(90deg, var(--low) 0 33%, var(--mid) 33% 66%, var(--high) 66% 100%); opacity: .85; }
+.pin { position: absolute; top: -5px; width: 4px; height: 20px; background: var(--fg); border-radius: 2px; transform: translateX(-2px); transition: left .4s ease; }
+.bar-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.metric { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.metric b { font-family: var(--font-mono); font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.metric span { font-size: 12px; color: var(--muted); }
+.metric small { font-size: 12px; }
+.tone-low { color: var(--low); } .tone-mid { color: var(--mid); } .tone-high { color: var(--high); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 13px; padding: 3px 9px; border-radius: 999px; background: var(--hl); color: var(--fg); }
+.chip i { font-style: normal; font-family: var(--font-mono); font-size: 11px; opacity: .7; margin-left: 4px; }
+.empty { font-size: 14px; color: var(--muted); }
+
+/* Opinión de Claude */
+.ai-box { border-top: 1px dashed var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.ai-result { display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+.ai-result h3 { font-size: 13px; font-weight: 700; }
+.ai-result ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.ai-status { font-size: 14px; color: var(--muted); }
+.pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; border: 1px solid currentColor; }
+
+/* Texto marcado */
+.doc {
+  font: 17px/1.8 var(--font-doc); white-space: pre-wrap; overflow-wrap: anywhere;
+  max-width: 46em; padding: 6px 4px;
+}
+.doc mark { background: var(--hl); color: inherit; border-radius: 3px; padding: 0 2px; }
+.doc mark.claude { background: var(--hl-strong); }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--hl); }
+.legend span.c::before { background: var(--hl-strong); }
+
+@media (max-width: 820px) {
+  .grid { grid-template-columns: 1fr; }
+  textarea { min-height: 240px; }
+}
+@media (prefers-reduced-motion: reduce) { .pin { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="label">Revisión de trabajos escritos</p>
+    <h1>Lupa de <span class="mark">Trabajos</span></h1>
+    <p>Pega el texto de un trabajo o sube el archivo de Word. La lupa busca rasgos de estilo que suelen aparecer en textos generados con IA y te muestra dónde están.</p>
+  </header>
+
+  <div class="warn" role="note">
+    <span aria-hidden="true">⚠️</span>
+    <p><b>Esto no es una prueba.</b> Ningún detector de IA es confiable al 100 %. Muchas personas escriben de forma ordenada y formal, y un texto con IA puede editarse para no parecerlo. Usa el resultado para conversar con el autor, no para acusar.</p>
+  </div>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="h-doc">
+      <div class="panel-head">
+        <h2 id="h-doc">Trabajo a revisar</h2>
+        <span class="count" id="count">0 palabras</span>
+      </div>
+      <textarea id="texto" aria-label="Texto del trabajo" placeholder="Pega aquí el texto del trabajo..."></textarea>
+      <div class="row">
+        <button class="btn btn-primary" id="btn-analizar" type="button">Analizar texto</button>
+        <label class="btn" for="archivo">Subir Word o PDF</label>
+        <input type="file" id="archivo" accept=".docx,.pdf,.txt">
+        <button class="btn" id="btn-limpiar" type="button">Borrar</button>
+      </div>
+      <p class="file-msg hint" id="file-msg">Acepta Word (.docx) y PDF, sin límite de páginas. También puedes arrastrar el archivo sobre el cuadro. Para Google Docs: copia y pega el texto, o descárgalo en <b>Archivo → Descargar</b> como Word o PDF.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-res">
+      <div class="panel-head">
+        <h2 id="h-res">Resultado</h2>
+        <span class="label" id="sample-tag">Texto de ejemplo</span>
+      </div>
+
+      <div class="meter">
+        <div class="meter-top">
+          <span class="verdict" id="verdict">—</span>
+          <span class="score" id="score"></span>
+        </div>
+        <div class="bar" aria-hidden="true"><div class="pin" id="pin" style="left:0%"></div></div>
+        <div class="bar-labels"><span>Pocas señales</span><span>Algunas</span><span>Muchas señales</span></div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric"><span>Variación entre oraciones</span><b id="m-var">—</b><small id="m-var-n"></small></div>
+        <div class="metric"><span>Frases típicas de IA</span><b id="m-fr">—</b><small id="m-fr-n"></small></div>
+        <div class="metric"><span>Palabras por oración</span><b id="m-len">—</b><small id="m-len-n"></small></div>
+        <div class="metric"><span>Vocabulario distinto</span><b id="m-voc">—</b><small id="m-voc-n"></small></div>
+      </div>
+
+      <div>
+        <p class="label" style="margin-bottom:8px">Frases encontradas</p>
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <div class="ai-box">
+        <div class="panel-head">
+          <h3 style="font-size:15px">Segunda opinión con Claude</h3>
+          <button class="btn" id="btn-claude" type="button">Pedir opinión</button>
+        </div>
+        <p class="hint" id="claude-hint">Claude lee el texto completo y explica qué le parece escrito por IA y qué le parece humano. Usa tu cuenta de Claude.</p>
+        <div class="ai-result" id="ai-result" aria-live="polite"></div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="h-marked">
+    <div class="panel-head">
+      <h2 id="h-marked">Texto marcado</h2>
+      <div class="legend"><span>Frase típica de IA</span><span class="c">Señalado por Claude</span></div>
+    </div>
+    <div class="doc" id="doc"></div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const ta = $('texto');
+
+  const EJEMPLO = `En la actualidad, la educación ambiental juega un papel fundamental en la formación de ciudadanos responsables. Es importante destacar que no solo permite comprender los problemas del entorno, sino también fomentar hábitos sostenibles en la vida cotidiana.
+
+Asimismo, las instituciones educativas tienen la responsabilidad de abordar esta temática de manera integral. En este sentido, resulta crucial implementar estrategias innovadoras que promuevan la participación activa de los estudiantes en diversas actividades ecológicas.
+
+Yo me di cuenta de esto el año pasado, cuando en el colegio hicimos una jornada de reciclaje y casi nadie sabía separar la basura. Fue un desastre, la verdad.
+
+En conclusión, la educación ambiental constituye una herramienta poderosa para construir un futuro más sostenible. Sin lugar a dudas, su implementación de manera significativa contribuirá al bienestar de las generaciones futuras.`;
+
+  const FRASES = [
+    'en conclusión','en resumen','en definitiva','en última instancia','cabe destacar','cabe mencionar','cabe resaltar',
+    'es importante destacar','es importante mencionar','es importante señalar','es importante resaltar','es fundamental','es crucial',
+    'juega un papel','desempeña un papel','papel fundamental','papel crucial','en el mundo actual','en el panorama actual',
+    'en la sociedad actual','en la actualidad','hoy en día','a lo largo de la historia','no solo','sino también','asimismo',
+    'en este sentido','en este contexto','sin lugar a dudas','fomentar','abordar','aspecto clave','de manera significativa',
+    'significativamente','enfoque integral','de manera integral','fundamental','crucial','profundizar','adentrarse','amplia gama',
+    'multifacético','potenciar','transformador','herramienta poderosa','enriquecedor','resulta crucial','resulta fundamental',
+    'estrategias innovadoras','contribuirá','constituye','en un mundo cada vez más'
+  ];
+  const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Las frases más largas primero para que ganen sobre las cortas
+  const FRASES_RE = new RegExp('(?<![\\p{L}])(' + [...FRASES].sort((a, b) => b.length - a.length).map(escRe).join('|') + ')(?![\\p{L}])', 'giu');
+
+  let claudeFragments = [];
+  let lastAnalyzed = '';
+
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const fmt1 = (n) => n.toLocaleString('es-CO', { maximumFractionDigits: 1 });
+
+  function words(t) { return t.match(/[\p{L}\p{N}]+/gu) || []; }
+  function sentences(t) {
+    return t.split(/(?<=[.!?…])\s+|\n+/).map(s => s.trim()).filter(s => words(s).length >= 3);
+  }
+
+  function analyze(text) {
+    const w = words(text);
+    const sents = sentences(text);
+    const lens = sents.map(s => words(s).length);
+    const mean = lens.reduce((a, b) => a + b, 0) / (lens.length || 1);
+    const sd = Math.sqrt(lens.reduce((a, b) => a + (b - mean) ** 2, 0) / (lens.length || 1));
+    const cv = mean ? sd / mean : 0;
+
+    const found = new Map();
+    let total = 0;
+    for (const m of text.matchAll(FRASES_RE)) {
+      const k = m[0].toLowerCase();
+      found.set(k, (found.get(k) || 0) + 1);
+      total++;
+    }
+    const density = w.length ? total / w.length * 100 : 0;
+    const sampleW = w.slice(0, 300).map(x => x.toLowerCase());
+    const ttr = sampleW.length ? new Set(sampleW).size / sampleW.length : 0;
+
+    const sVar = clamp((0.65 - cv) / 0.4);           // oraciones muy parejas → más señal
+    const sFr = clamp(density / 2.5);                 // muchas frases típicas → más señal
+    const sLen = mean >= 18 && mean <= 32 ? 0.7 : 0.2; // oraciones largas y regulares
+    const score = Math.round(100 * (0.45 * sVar + 0.45 * sFr + 0.10 * sLen));
+
+    return { nWords: w.length, nSents: sents.length, cv, mean, total, density, found, ttr, score };
+  }
+
+  function tone(v, lo, hi, invert) {
+    // devuelve clase según si el valor apunta a "humano" (low) o "IA" (high)
+    const x = invert ? -v : v;
+    const a = invert ? -hi : lo, b = invert ? -lo : hi;
+    return x < a ? 'tone-low' : x < b ? 'tone-mid' : 'tone-high';
+  }
+
+  function setMetric(id, value, note, cls) {
+    $(id).textContent = value;
+    const n = $(id + '-n');
+    n.textContent = note;
+    n.className = cls || '';
+  }
+
+  function render(text) {
+    const r = analyze(text);
+    $('count').textContent = r.nWords.toLocaleString('es-CO') + ' palabras';
+    $('sample-tag').hidden = text !== EJEMPLO;
+
+    if (r.nWords === 0) {
+      $('verdict').textContent = 'Sin texto';
+      $('verdict').className = 'verdict';
+      $('score').textContent = '';
+      $('pin').style.left = '0%';
+      ['m-var', 'm-fr', 'm-len', 'm-voc'].forEach(id => setMetric(id, '—', ''));
+      $('chips').innerHTML = '<p class="empty">Pega un texto o sube un archivo para analizarlo.</p>';
+      renderDoc(text);
+      return;
+    }
+
+    const v = r.score < 34 ? ['Pocas señales de IA', 'tone-low'] : r.score < 67 ? ['Algunas señales de IA', 'tone-mid'] : ['Muchas señales de IA', 'tone-high'];
+    $('verdict').textContent = v[0];
+    $('verdict').className = 'verdict ' + v[1];
+    $('score').textContent = r.score + ' / 100' + (r.nWords < 60 ? ' · texto corto, resultado poco confiable' : '');
+    $('pin').style.left = r.score + '%';
+
+    setMetric('m-var', fmt1(r.cv * 100) + ' %',
+      r.cv < 0.35 ? 'Oraciones muy parejas' : r.cv < 0.55 ? 'Variación media' : 'Variación natural',
+      r.cv < 0.35 ? 'tone-high' : r.cv < 0.55 ? 'tone-mid' : 'tone-low');
+    setMetric('m-fr', String(r.total),
+      fmt1(r.density) + ' por cada 100 palabras',
+      r.density > 1.6 ? 'tone-high' : r.density > 0.7 ? 'tone-mid' : 'tone-low');
+    setMetric('m-len', fmt1(r.mean),
+      'en ' + r.nSents + ' oraciones', r.mean >= 18 && r.mean <= 32 ? 'tone-mid' : 'tone-low');
+    setMetric('m-voc', fmt1(r.ttr * 100) + ' %', 'de las primeras 300 palabras', '');
+
+    const chips = $('chips');
+    chips.innerHTML = '';
+    if (!r.found.size) chips.innerHTML = '<p class="empty">No encontré frases típicas.</p>';
+    [...r.found.entries()].sort((a, b) => b[1] - a[1]).forEach(([k, n]) => {
+      const c = document.createElement('span');
+      c.className = 'chip';
+      c.textContent = k;
+      if (n > 1) { const i = document.createElement('i'); i.textContent = '×' + n; c.append(i); }
+      chips.append(c);
+    });
+    renderDoc(text);
+  }
+
+  function renderDoc(text) {
+    const ranges = [];
+    for (const m of text.matchAll(FRASES_RE)) ranges.push({ s: m.index, e: m.index + m[0].length, c: '' });
+    for (const f of claudeFragments) {
+      const frag = String(f.texto || '').trim();
+      if (frag.length < 8) continue;
+      const i = text.indexOf(frag);
+      if (i >= 0) ranges.push({ s: i, e: i + frag.length, c: 'claude', t: f.motivo });
+    }
+    // Claude primero si se solapan; luego por inicio
+    ranges.sort((a, b) => a.s - b.s || (a.c === 'claude' ? -1 : 1));
+    const doc = $('doc');
+    doc.textContent = '';
+    let pos = 0;
+    for (const r of ranges) {
+      if (r.s < pos) continue;
+      doc.append(text.slice(pos, r.s));
+      const mk = document.createElement('mark');
+      if (r.c) mk.className = r.c;
+      if (r.t) mk.title = String(r.t);
+      mk.textContent = text.slice(r.s, r.e);
+      doc.append(mk);
+      pos = r.e;
+    }
+    doc.append(text.slice(pos));
+    if (!text.trim()) doc.innerHTML = '<p class="empty">Aquí aparecerá el texto con las frases marcadas.</p>';
+  }
+
+  function run() {
+    const t = ta.value;
+    if (t !== lastAnalyzed) { claudeFragments = []; $('ai-result').textContent = ''; }
+    lastAnalyzed = t;
+    render(t);
+  }
+
+  // Archivos: Word, PDF o texto
+  async function leerPdf(file, onPage) {
+    const lib = window.pdfjsLib;
+    if (!lib) throw new Error('lector');
+    lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      onPage(i, pdf.numPages);
+      const tc = await (await pdf.getPage(i)).getTextContent();
+      let s = '';
+      for (const it of tc.items) {
+        s += it.str;
+        if (it.hasEOL) s += '\n';
+        else if (it.str && !it.str.endsWith(' ')) s += ' ';
+      }
+      pages.push(s);
+    }
+    return pages.join('\n\n')
+      .replace(/-\n(?=\p{Ll})/gu, '')          // palabras cortadas con guion al final de línea
+      .replace(/([^\n])\n(?!\n)/g, '$1 ')      // une líneas del mismo párrafo
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  async function cargarArchivo(file) {
+    if (!file) return;
+    const msg = $('file-msg');
+    msg.textContent = 'Leyendo ' + file.name + '...';
+    try {
+      let texto;
+      if (/\.txt$/i.test(file.name)) {
+        texto = await file.text();
+      } else if (/\.docx$/i.test(file.name)) {
+        if (!window.mammoth) throw new Error('lector');
+        const res = await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+        texto = res.value.replace(/\n{3,}/g, '\n\n').trim();
+      } else if (/\.pdf$/i.test(file.name)) {
+        texto = await leerPdf(file, (i, n) => { msg.textContent = 'Leyendo ' + file.name + ': página ' + i + ' de ' + n + '...'; });
+        if (!words(texto).length) {
+          msg.textContent = 'El PDF "' + file.name + '" no tiene texto seleccionable. Parece un documento escaneado (una foto de las hojas), y así no se puede leer.';
+          return;
+        }
+      } else {
+        msg.textContent = 'No puedo leer ese tipo de archivo. Usa Word (.docx), PDF o copia y pega el texto.';
+        return;
+      }
+      ta.value = texto;
+      msg.textContent = 'Cargado: ' + file.name + ' (' + words(texto).length.toLocaleString('es-CO') + ' palabras)';
+      run();
+    } catch (err) {
+      msg.textContent = 'No pude leer "' + file.name + '". Si es un Word antiguo (.doc), ábrelo y guárdalo como .docx. Si es un PDF con contraseña, quítasela primero.';
+    }
+  }
+
+  $('archivo').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    cargarArchivo(file);
+  });
+  ta.addEventListener('dragover', (e) => { if ([...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+  ta.addEventListener('drop', (e) => {
+    if (!e.dataTransfer.files.length) return;
+    e.preventDefault();
+    cargarArchivo(e.dataTransfer.files[0]);
+  });
+
+  $('btn-analizar').addEventListener('click', run);
+  $('btn-limpiar').addEventListener('click', () => { ta.value = ''; run(); ta.focus(); });
+  ta.addEventListener('input', () => { $('count').textContent = words(ta.value).length.toLocaleString('es-CO') + ' palabras'; });
+
+  // Segunda opinión con Claude
+  const btnC = $('btn-claude');
+  const out = $('ai-result');
+  btnC.disabled = true;
+  let samplePromise = window.claude?.use ? window.claude.use('sample') : Promise.resolve(null);
+  samplePromise.then((sample) => {
+    if (!sample) {
+      btnC.hidden = true;
+      $('claude-hint').textContent = 'La segunda opinión con Claude no está disponible en esta vista. El análisis de estilo sí funciona.';
+      return;
+    }
+    btnC.disabled = false;
+    btnC.addEventListener('click', async () => {
+      const text = ta.value.trim();
+      if (!words(text).length) { out.innerHTML = '<p class="ai-status">Pega un texto o sube un archivo primero.</p>'; return; }
+      btnC.disabled = true;
+
+      // Trabajos muy largos se envían por partes (cada parte cabe en una consulta)
+      const MAX = 120000;
+      const partes = [];
+      let resto = text;
+      while (resto.length > MAX) {
+        let corte = resto.lastIndexOf('\n\n', MAX);
+        if (corte < MAX * 0.5) corte = resto.lastIndexOf('. ', MAX) + 1;
+        if (corte <= 0) corte = MAX;
+        partes.push(resto.slice(0, corte));
+        resto = resto.slice(corte).trimStart();
+      }
+      partes.push(resto);
+
+      const pedir = (parte, i) => sample.json(`Eres un profesor que revisa trabajos escritos en español. Evalúa con prudencia qué tan probable es que el siguiente texto haya sido generado o muy asistido por una IA. Recuerda que estos juicios son inciertos: un estudiante puede escribir de forma formal y ordenada, y no debes afirmar nada con certeza.${partes.length > 1 ? ` Esta es la parte ${i + 1} de ${partes.length} de un trabajo largo.` : ''}
+
+Responde SOLO con un objeto JSON con esta forma:
+{"nivel":"bajo"|"medio"|"alto","resumen":"2 o 3 oraciones en español, en tono prudente","senales_ia":["..."],"senales_humanas":["..."],"fragmentos":[{"texto":"cita EXACTA y literal del texto, de 8 a 25 palabras","motivo":"por qué parece de IA"}]}
+Máximo 4 elementos en cada lista y máximo 4 fragmentos. Las citas de "fragmentos" deben copiarse letra por letra del texto.
+
+TEXTO:
+"""
+${parte}
+"""`);
+
+      try {
+        const resultados = [];
+        for (let i = 0; i < partes.length; i++) {
+          out.innerHTML = '';
+          const st = document.createElement('p'); st.className = 'ai-status';
+          st.textContent = partes.length > 1 ? `Claude está leyendo la parte ${i + 1} de ${partes.length} del trabajo...` : 'Claude está leyendo el trabajo...';
+          out.append(st);
+          resultados.push(await pedir(partes[i], i));
+        }
+        const orden = { bajo: 0, medio: 1, alto: 2 };
+        const nivelMax = resultados.map(x => String(x?.nivel || '').toLowerCase())
+          .reduce((a, b) => (orden[b] ?? -1) > (orden[a] ?? -1) ? b : a, '');
+        const junta = (k, n) => [...new Set(resultados.flatMap(x => Array.isArray(x?.[k]) ? x[k] : []).map(String))].slice(0, n);
+        const r = {
+          nivel: nivelMax,
+          resumen: resultados.length === 1 ? resultados[0]?.resumen
+            : resultados.map((x, i) => `Parte ${i + 1} (${x?.nivel || 'sin dato'}): ${x?.resumen || ''}`).join(' '),
+          senales_ia: junta('senales_ia', 6),
+          senales_humanas: junta('senales_humanas', 6),
+          fragmentos: resultados.flatMap(x => Array.isArray(x?.fragmentos) ? x.fragmentos : [])
+        };
+        const nivel = String(r?.nivel || '').toLowerCase();
+        const cls = nivel === 'alto' ? 'tone-high' : nivel === 'medio' ? 'tone-mid' : 'tone-low';
+        out.innerHTML = '';
+        const head = document.createElement('p');
+        const pill = document.createElement('span');
+        pill.className = 'pill ' + cls;
+        pill.textContent = 'Probabilidad ' + (nivel || 'sin dato');
+        head.append(pill);
+        out.append(head);
+        if (r?.resumen) { const p = document.createElement('p'); p.textContent = String(r.resumen); out.append(p); }
+        const list = (title, arr) => {
+          if (!Array.isArray(arr) || !arr.length) return;
+          const h = document.createElement('h3'); h.textContent = title;
+          const ul = document.createElement('ul');
+          arr.slice(0, 6).forEach(x => { const li = document.createElement('li'); li.textContent = String(x); ul.append(li); });
+          out.append(h, ul);
+        };
+        list('Lo que parece de IA', r?.senales_ia);
+        list('Lo que parece humano', r?.senales_humanas);
+        claudeFragments = r.fragmentos;
+        if (claudeFragments.length) {
+          const p = document.createElement('p'); p.className = 'hint';
+          p.textContent = 'Los fragmentos señalados aparecen en naranja en el texto marcado. Pasa el mouse sobre ellos para ver el motivo.';
+          out.append(p);
+        }
+        lastAnalyzed = ta.value;
+        render(ta.value);
+      } catch (e) {
+        const msgs = {
+          not_granted: 'No diste permiso para usar Claude en esta página. El análisis de estilo sigue funcionando.',
+          sampling_disabled: 'Claude no está disponible para esta cuenta.',
+          rate_limited: 'Has hecho muchas consultas seguidas. Espera un momento y vuelve a intentar.',
+          invalid_json: 'La respuesta llegó incompleta. Vuelve a intentarlo.',
+          refused: 'Claude no pudo analizar este texto.',
+          prompt_too_large: 'El texto es demasiado largo. Prueba con una parte del trabajo.',
+          session_expired: 'Tu sesión expiró. Vuelve a iniciar sesión en Claude.'
+        };
+        out.innerHTML = '';
+        const p = document.createElement('p'); p.className = 'ai-status';
+        p.textContent = msgs[e?.code] || 'Hubo un problema de conexión. Vuelve a intentarlo.';
+        out.append(p);
+        if (['not_granted', 'sampling_disabled'].includes(e?.code)) { btnC.hidden = true; return; }
+      }
+      btnC.disabled = false;
+    });
+  });
+
+  ta.value = EJEMPLO;
+  run();
+})();
+</script>
+
+</body>
+</html>
